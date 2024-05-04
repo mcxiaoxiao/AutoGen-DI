@@ -1,0 +1,98 @@
+question,answer
+画个图，展示未来3天内光伏与风电发电量预测,"from datetime import datetime, timedelta
+import matplotlib.pyplot as plt
+from matplotlib.font_manager import FontProperties
+from get_predict import PredictFd
+
+# 设置中文字体
+font_path = '/Library/Fonts/Arial Unicode.ttf'  # 这里使用宋体作为示例，你可以根据需要更改为其他中文字体
+font_prop = FontProperties(fname=font_path, size=12)
+
+# 当前日期和3天后的日期
+now_date = datetime.now().strftime('%Y-%m-%d')
+future_date = (datetime.now() + timedelta(days=3)).strftime('%Y-%m-%d')
+
+# 初始化数据列表
+dates = []
+pv_predicts = []
+wind_predicts = []
+
+# 循环获取未来3天的预测数据
+for i in range(4):
+    predict_date = (datetime.now() + timedelta(days=i)).strftime('%Y-%m-%d')
+    dates.append(predict_date)
+
+    # 光伏发电量预测
+    pv_predict = await PredictFd(now_date.replace('-', ''), predict_date.replace('-', ''), ""123"", ""光伏"")
+    pv_predicts.append(pv_predict['predict'])
+
+    # 风电发电量预测
+    wind_predict = await PredictFd(now_date.replace('-', ''), predict_date.replace('-', ''), ""154"", ""风力"")
+    wind_predicts.append(wind_predict['predict'])
+
+# 设置背景色为白色
+plt.figure(figsize=(10, 6), facecolor='white')
+
+# 绘制图线 如果问题没有特别说明，画线要用#00706B
+plt.plot(dates, pv_predicts, marker='o', linestyle='-', color='#00706B', label='光伏发电量预测')
+plt.plot(dates, wind_predicts, marker='s', linestyle='--', color='#00706B', label='风电发电量预测')
+
+# 添加图表标题和图例，使用fontproperties设置中文显示
+plt.title(f'{now_date}至{future_date}光伏与风电发电量预测', fontproperties=font_prop)
+plt.xlabel('日期', fontproperties=font_prop)
+plt.ylabel('发电量预测 (mWh)', fontproperties=font_prop)
+plt.xticks(rotation=45)
+plt.legend(prop=font_prop)
+
+plt.tight_layout()
+plt.show()
+"
+今天光伏发电量是123 风电 154 制作一份csv，包含这7天的发电预测数据和对应的厂用率给出均值和方差和预测的区间 文件名就叫今天日期～7天后的日期.csv,"import numpy as np
+import pandas as pd
+from datetime import datetime, timedelta
+from get_predict import PredictFd
+from get_cylpredict import PredictCyl
+
+# 当前日期和7天后的日期
+now_date = datetime.now().strftime('%Y%m%d')
+future_date = (datetime.now() + timedelta(days=7)).strftime('%Y%m%d')
+
+# 初始化数据列表
+data = []
+
+# 循环获取未来7天的预测数据
+for i in range(8):
+    predict_date = (datetime.now() + timedelta(days=i)).strftime('%Y%m%d')
+    # 光伏发电量预测
+    pv_predict = await PredictFd(now_date, predict_date, ""123"", ""光伏"")
+    # 风电发电量预测
+    wind_predict = await PredictFd(now_date, predict_date, ""154"", ""风力"")
+
+    # 获取光伏的厂用率预测
+    pv_cyl_predict = await PredictCyl(pv_predict['predict'], ""gf"")
+    # 获取风电的厂用率预测
+    wind_cyl_predict = await PredictCyl(wind_predict['predict'], ""fd"")
+
+    # 添加到数据列表
+    data.append({
+        ""date"": predict_date,
+        ""pv_predict"": pv_predict['predict'],
+        ""wind_predict"": wind_predict['predict'],
+        ""pv_mean"": pv_cyl_predict['mean'],
+        ""pv_std"": pv_cyl_predict['std'],
+        ""pv_interval_lower"": pv_cyl_predict['interval_lower'],
+        ""pv_interval_upper"": pv_cyl_predict['interval_upper'],
+        ""wind_mean"": wind_cyl_predict['mean'],
+        ""wind_std"": wind_cyl_predict['std'],
+        ""wind_interval_lower"": wind_cyl_predict['interval_lower'],
+        ""wind_interval_upper"": wind_cyl_predict['interval_upper'],
+    })
+
+# 创建DataFrame
+df = pd.DataFrame(data)
+
+# 保存到CSV
+filename = f""{now_date}～{future_date}.csv""
+df.to_csv(filename, index=False)
+
+print(f""File {filename} has been saved successfully."")"
